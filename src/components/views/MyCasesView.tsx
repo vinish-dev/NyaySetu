@@ -24,7 +24,8 @@ import {
   ExternalLink,
   Lock,
   Eye,
-  Sparkles
+  Info,
+  Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -126,7 +127,7 @@ export function MyCasesView({
           <Button
             variant="outline"
             className="gap-2 rounded-xl text-xs font-semibold shadow-xs"
-            onClick={() => alert('Sharing Case Dossier Link (Secured with view-only passphrase).')}
+            onClick={() => alert('Sharing Case Preparation Report (Structured summary with verified exhibit indexing).')}
           >
             <Share2 className="h-3.5 w-3.5" />
             <span>Share Case Report</span>
@@ -169,7 +170,7 @@ export function MyCasesView({
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-bold text-indigo-700">3. Review & Organize</span>
-              <span className="text-[11px] text-indigo-600 font-medium">We analyze for you</span>
+              <span className="text-[11px] text-indigo-600 font-medium">Fact synthesis</span>
             </div>
           </div>
 
@@ -322,7 +323,7 @@ export function MyCasesView({
             {subTab === 'timeline' && (
               <div className="p-6">
                 <div className="relative border-l-2 border-slate-100 ml-4 space-y-6">
-                  {activeCaseData.timeline.map((ev, index) => (
+                  {activeCaseData.timeline.map((ev) => (
                     <div key={ev.id} className="relative pl-6">
                       {/* Node Bullet Icon */}
                       <div
@@ -402,7 +403,7 @@ export function MyCasesView({
               </div>
             )}
 
-            {/* TAB 2: EVIDENCE VIEW (Exact table from screenshot) */}
+            {/* TAB 2: EVIDENCE VIEW */}
             {subTab === 'evidence' && (
               <div className="p-6 space-y-4">
                 <div className="flex items-center justify-between pb-2">
@@ -546,67 +547,75 @@ export function MyCasesView({
 
         {/* Right Rail Column (4 cols) */}
         <div className="space-y-6 lg:col-span-4">
-          {/* Case Readiness Score Card */}
+          
+          {/* ============================================================ */}
+          {/* TRANSPARENT CASE PREPARATION COMPLETION GAUGE               */}
+          {/* ============================================================ */}
           <Card className="p-5">
-            <div className="flex items-center justify-between pb-3">
-              <h3 className="font-heading text-sm font-bold text-slate-900">
-                Case Readiness Score
-              </h3>
-              <button
-                onClick={() =>
-                  alert('Readiness is determined by fact completeness, chronological coherence, and verified evidence.')
-                }
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <AlertCircle className="h-4 w-4" />
-              </button>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Case Preparation
+                </span>
+                <h3 className="font-heading text-base font-extrabold text-slate-900">
+                  82% complete
+                </h3>
+              </div>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                Well-Structured
+              </span>
             </div>
 
-            <div className="flex items-center gap-4 py-2">
-              {/* Circular Gauge Ring */}
-              <div className="relative flex h-24 w-24 shrink-0 items-center justify-center">
-                <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
-                  <path
-                    className="text-slate-100"
-                    strokeWidth="3.5"
-                    stroke="currentColor"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                  <path
-                    className="text-emerald-500"
-                    strokeDasharray="82, 100"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    stroke="currentColor"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                </svg>
-                <div className="absolute flex flex-col items-center justify-center text-center">
-                  <span className="text-xl font-extrabold text-slate-900 leading-none">
-                    82%
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-600 mt-0.5">
-                    Good
-                  </span>
-                </div>
-              </div>
+            {/* Transparent Calculation Checklist */}
+            <div className="mt-3.5 space-y-2">
+              <span className="text-[11px] font-semibold text-slate-500 block">
+                Preparation Progress Breakdown:
+              </span>
+              <ul className="space-y-1.5 text-xs">
+                {activeCaseData.readinessChecklist.map((item, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-center justify-between rounded-lg px-2.5 py-1.5 bg-slate-50/70 border border-slate-100"
+                  >
+                    <span className="flex items-center gap-2 text-slate-700">
+                      {item.status === 'complete' ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                      )}
+                      <span className={item.status === 'complete' ? 'font-medium' : 'font-semibold text-amber-900'}>
+                        {item.name}
+                      </span>
+                    </span>
+                    <span
+                      className={`text-[10.5px] font-bold ${
+                        item.status === 'complete' ? 'text-emerald-700' : 'text-amber-700'
+                      }`}
+                    >
+                      {item.status === 'complete' ? 'Done' : 'Pending'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-              <div className="space-y-2">
-                <p className="text-xs text-slate-600 leading-snug">
-                  {activeCaseData.readinessNote}
-                </p>
-                <Button
-                  variant="outlinePurple"
-                  size="sm"
-                  onClick={onOpenUploadEvidence}
-                  className="rounded-xl text-xs font-semibold"
-                >
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  Improve Score
-                </Button>
-              </div>
+            {/* Note clarifying completion metric */}
+            <div className="mt-3.5 flex items-start gap-2 rounded-xl bg-slate-50 p-2.5 text-[11px] text-slate-500 border border-slate-100 leading-snug">
+              <Info className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
+              <span>
+                This is a documentation completeness metric, not an AI judgment or prediction of legal outcome.
+              </span>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <Button
+                variant="outlinePurple"
+                size="sm"
+                onClick={onOpenUploadEvidence}
+                className="w-full justify-center text-xs font-semibold rounded-xl"
+              >
+                Add Missing Documents
+              </Button>
             </div>
           </Card>
 
@@ -647,32 +656,46 @@ export function MyCasesView({
             </ul>
           </Card>
 
-          {/* Recommended Authority Card */}
+          {/* ============================================================ */}
+          {/* POTENTIAL FILING CHANNELS (REPLACED RECOMMENDED AUTHORITY)  */}
+          {/* ============================================================ */}
           <Card className="p-5">
-            <h3 className="font-heading text-sm font-bold text-slate-900 pb-3">
-              Recommended Authority
-            </h3>
-            <div className="flex items-start gap-3">
-              <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
-                <Landmark className="h-5 w-5" />
+            <div className="space-y-1 pb-3">
+              <h3 className="font-heading text-sm font-bold text-slate-900">
+                Potential Filing Channels
+              </h3>
+              <p className="text-[11px] text-slate-500 leading-snug">
+                {activeCaseData.potentialFilingChannels.reason}
+              </p>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl bg-slate-50/70 p-3 border border-slate-100">
+              <div className="rounded-xl bg-indigo-50 p-2 text-indigo-600 shrink-0">
+                <Landmark className="h-4 w-4" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <h4 className="text-xs font-bold text-slate-900 leading-snug">
-                  {activeCaseData.recommendedAuthority.name}
+                  {activeCaseData.potentialFilingChannels.name}
                 </h4>
                 <p className="text-[11px] text-slate-500">
-                  {activeCaseData.recommendedAuthority.reason}
+                  {activeCaseData.potentialFilingChannels.jurisdiction}
                 </p>
               </div>
             </div>
-            <div className="mt-4">
+
+            {/* Subtle channel disclaimer */}
+            <p className="mt-2.5 text-[10.5px] italic text-slate-400 leading-tight">
+              ⚠️ {activeCaseData.potentialFilingChannels.disclaimer}
+            </p>
+
+            <div className="mt-3.5">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onOpenFilingProcess}
                 className="w-full justify-center gap-1.5 rounded-xl text-xs font-semibold shadow-xs"
               >
-                <span>View Filing Process</span>
+                <span>Explore Filing Channel Details</span>
                 <ExternalLink className="h-3 w-3" />
               </Button>
             </div>

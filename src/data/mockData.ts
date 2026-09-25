@@ -31,6 +31,11 @@ export interface ClaimItem {
   substantiated: boolean;
 }
 
+export interface ReadinessCheckItem {
+  name: string;
+  status: 'complete' | 'missing';
+}
+
 export interface CaseDetail {
   id: string;
   caseId: string;
@@ -38,9 +43,10 @@ export interface CaseDetail {
   createdDate: string;
   category: string;
   status: string;
-  readinessScore: number;
-  readinessLabel: string;
-  readinessNote: string;
+  completionScore: number;
+  completionLabel: string;
+  completionNote: string;
+  readinessChecklist: ReadinessCheckItem[];
   summary: {
     narrative: string;
     incidentDate: string;
@@ -58,10 +64,11 @@ export interface CaseDetail {
     severity: 'danger' | 'warning';
   }[];
   claimsCovered: string[];
-  recommendedAuthority: {
+  potentialFilingChannels: {
     name: string;
     jurisdiction: string;
     reason: string;
+    disclaimer: string;
     portalName: string;
     portalUrl: string;
   };
@@ -99,9 +106,17 @@ export const activeCaseData: CaseDetail = {
   createdDate: '12 May 2024',
   category: 'Consumer Dispute',
   status: 'In Preparation',
-  readinessScore: 82,
-  readinessLabel: 'Good',
-  readinessNote: "Your case is well-structured. You're almost ready to file.",
+  completionScore: 82,
+  completionLabel: '82% complete',
+  completionNote: 'Key incident facts and financial transactions documented. 2 exhibits pending for complete file readiness.',
+  readinessChecklist: [
+    { name: 'Incident details', status: 'complete' },
+    { name: 'Timeline', status: 'complete' },
+    { name: 'Payment proof', status: 'complete' },
+    { name: 'Communication records', status: 'complete' },
+    { name: 'Product serial/IMEI', status: 'missing' },
+    { name: 'Warranty document', status: 'missing' },
+  ],
   summary: {
     narrative: 'You purchased a smartphone from ABC Store on 10 Jan 2024. The product was defective (not charging) from the day of delivery. You requested a replacement/refund multiple times but the seller refused and stopped responding.',
     incidentDate: '10 Jan 2024',
@@ -293,27 +308,28 @@ export const activeCaseData: CaseDetail = {
     'Seller failed to resolve the issue',
     'Refund requested but denied'
   ],
-  recommendedAuthority: {
+  potentialFilingChannels: {
     name: 'District Consumer Disputes Redressal Commission',
     jurisdiction: 'Bangalore Urban District (Pecuniary claims up to ₹50 Lakhs)',
-    reason: 'Consumer transaction involving goods and service under CPA 2019.',
+    reason: 'Based on the information provided, these channels may be relevant for consumer transactions involving goods and services.',
+    disclaimer: 'Informational only. NyaySetu does not provide legal representation or formal jurisdiction determinations.',
     portalName: 'e-Daakhil Portal (edaakhil.nic.in)',
     portalUrl: 'https://edaakhil.nic.in'
   },
   nextSteps: [
     {
       title: 'Review missing items and add if available',
-      subtitle: 'Upload serial number photo to hit 95% readiness',
+      subtitle: 'Upload serial number photo to achieve 100% preparation completeness',
       actionType: 'upload'
     },
     {
-      title: 'Generate your Case Report',
-      subtitle: 'Export indexed court docket with exhibit coversheets',
+      title: 'Generate your Case Preparation Report',
+      subtitle: 'Export indexed fact sheet with exhibit coversheets',
       actionType: 'export'
     },
     {
-      title: 'File with recommended authority',
-      subtitle: 'Submit via e-Daakhil or visit Bangalore District Commission',
+      title: 'Explore potential filing channels',
+      subtitle: 'Review e-Daakhil online process or visit Bangalore District Commission',
       actionType: 'file'
     }
   ]
@@ -323,7 +339,7 @@ export const sampleAuditedDocs: Record<string, AuditedDocument> = {
   lease: {
     id: 'doc-lease',
     title: 'Standard Residential Tenancy Agreement',
-    meta: '11 Pages • Governing Law: Karnataka Rent Control / Model Tenancy Act',
+    meta: '11 Pages • Reference Framework: Karnataka Rent Control / Model Tenancy Act',
     summary: 'This is an 11-month rental agreement for an apartment in Bangalore with a monthly rent of ₹32,000 and an upfront security deposit of ₹1,60,000 (5 months). The landlord permits termination with 1 month notice, but Clause 14 imposes an aggressive 50% forfeiture if you vacate before 6 months. Maintenance charges are excluded from rent.',
     clauses: [
       {
@@ -335,10 +351,10 @@ export const sampleAuditedDocs: Record<string, AuditedDocument> = {
       },
       {
         tag: 'Clause 14 • Lock-in Period & Forfeiture',
-        risk: 'High Risk / Unfavorable',
-        riskVariant: 'destructive',
+        risk: 'Potential concern',
+        riskVariant: 'warning',
         raw: '"In the event the Tenant vacates the premises prior to 180 days, fifty percent (50%) of the total security deposit shall stand unconditionally forfeited as liquidated damages."',
-        meaning: 'If your job transfers you or you leave before 6 months, the owner claims a right to keep ₹80,000 automatically, which is often challenged under Indian Contract Act Section 74 unless actual loss is proven.'
+        meaning: 'If you leave before 6 months, the owner claims a right to keep ₹80,000 automatically, which often requires professional review under Indian Contract Act Section 74 principles regarding actual loss.'
       },
       {
         tag: 'Clause 9 • Maintenance & Painting Charges',
@@ -360,7 +376,7 @@ export const sampleAuditedDocs: Record<string, AuditedDocument> = {
       },
       {
         title: 'Unilateral Landlord Inspection',
-        description: 'Clause 11 grants landlord right of entry "at any hour without prior intimation", which infringes on tenant\'s right to peaceful possession.'
+        description: 'Clause 11 grants landlord right of entry "at any hour without prior intimation", which may conflict with tenant\'s peaceful possession.'
       }
     ],
     lawyerQuestions: [
@@ -372,22 +388,22 @@ export const sampleAuditedDocs: Record<string, AuditedDocument> = {
   consumer: {
     id: 'doc-consumer',
     title: 'Electronic Goods Sales Terms & Warranty EULA',
-    meta: '7 Pages • Governing Law: Consumer Protection (E-Commerce) Rules 2020',
-    summary: 'Standard seller conditions for consumer electronic devices. Restricts liability for pre-existing battery or software boot failure and attempts to force arbitration exclusively in New Delhi, contrary to Section 34 of CPA 2019.',
+    meta: '7 Pages • Reference Framework: Consumer Protection (E-Commerce) Rules 2020',
+    summary: 'Standard seller conditions for consumer electronic devices. Restricts liability for pre-existing battery or software boot failure and attempts to force arbitration exclusively in New Delhi, contrary to convenience protections in CPA 2019.',
     clauses: [
       {
         tag: 'Clause 3 • Jurisdiction Restriction',
-        risk: 'Unenforceable',
+        risk: 'Requires professional review',
         riskVariant: 'destructive',
         raw: '"Any disputes arising out of purchase shall be submitted exclusively to courts in New Delhi to the exclusion of all other jurisdictions."',
-        meaning: 'Under CPA 2019 Sec 34, a consumer can file at their own place of residence. The merchant cannot force you to travel to Delhi.'
+        meaning: 'Under CPA 2019 Section 34, consumers typically have the right to file at their own place of residence. Consult a lawyer on whether this clause can be set aside.'
       },
       {
         tag: 'Clause 8 • "Opened Box" No-Refund Clause',
-        risk: 'Unfair Trade Practice',
+        risk: 'Potential concern',
         riskVariant: 'destructive',
         raw: '"Goods once unsealed or powered on are deemed accepted and non-refundable under all circumstances."',
-        meaning: 'If goods are defective upon arrival, statutory warranty overrides this clause under Section 2(47).'
+        meaning: 'If goods are defective upon arrival, statutory warranty protections may take precedence over merchant exclusions.'
       }
     ],
     obligations: [
@@ -397,33 +413,33 @@ export const sampleAuditedDocs: Record<string, AuditedDocument> = {
     inconsistencies: [
       {
         title: 'Arbitration Clause vs Consumer Forum',
-        description: 'The agreement tries to steer disputes into private arbitration, but Supreme Court has established that Consumer Forum remedies are additional.'
+        description: 'The agreement attempts to steer disputes into private arbitration, whereas consumer forums provide an additional statutory avenue.'
       }
     ],
     lawyerQuestions: [
-      'Can the consumer forum award punitive damages for mandatory opened-box exclusions?',
-      'How to hold both the marketplace and third-party seller jointly liable?'
+      'Can the consumer forum award compensation for mandatory opened-box exclusions?',
+      'How to establish joint liability between marketplace platform and the third-party merchant?'
     ]
   },
   employment: {
     id: 'doc-employment',
     title: 'Employment Non-Disclosure & Non-Compete Agreement',
-    meta: '14 Pages • Governing Law: Indian Contract Act 1872, Section 27',
+    meta: '14 Pages • Reference Framework: Indian Contract Act 1872',
     summary: 'Standard corporate employment agreement containing post-termination restrictions, intellectual property assignments, and non-solicitation of clients.',
     clauses: [
       {
         tag: 'Clause 6 • Post-Employment Non-Compete (12 Months)',
-        risk: 'Void under Sec 27',
+        risk: 'Requires professional review',
         riskVariant: 'destructive',
         raw: '"The Employee covenants not to engage with any competing technology business in India for 12 months after termination."',
-        meaning: 'Under Section 27 of Indian Contract Act, post-employment non-compete agreements are void as restraint of trade in India.'
+        meaning: 'Under Section 27 of Indian Contract Act, post-employment restrictive covenants are generally scrutinized strictly as restraint of trade. A lawyer can evaluate enforceability.'
       },
       {
         tag: 'Clause 9 • Withholding Final Settlement for IP Audit',
-        risk: 'High Risk',
+        risk: 'Potential concern',
         riskVariant: 'warning',
         raw: '"Company reserves right to withhold final salary and Gratuity up to 90 days for forensic laptop review."',
-        meaning: 'Payment of Wages Act and Gratuity Act mandate strict statutory disbursement timelines (typically within 30 days).'
+        meaning: 'Statutory enactments like the Payment of Wages Act and Gratuity Act define mandatory disbursement timelines that may supersede internal policies.'
       }
     ],
     obligations: [
@@ -433,7 +449,7 @@ export const sampleAuditedDocs: Record<string, AuditedDocument> = {
     inconsistencies: [
       {
         title: 'Gratuity Withholding vs Payment of Gratuity Act',
-        description: 'Gratuity can only be forfeited for intentional damage or moral turpitude after formal inquiry, not routine exit audits.'
+        description: 'Statutory gratuity protections strictly limit the conditions under which accrued gratuity can be withheld.'
       }
     ],
     lawyerQuestions: [

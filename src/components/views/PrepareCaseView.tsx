@@ -8,7 +8,7 @@ import {
   Link as LinkIcon,
   SearchCheck,
   FileCheck,
-  Sparkles,
+  Info,
   ArrowRight,
   ArrowLeft,
   UploadCloud,
@@ -56,7 +56,7 @@ export function PrepareCaseView({
             Guided Case Preparation Workflow
           </h1>
           <p className="text-xs text-slate-500 max-w-2xl">
-            Step-by-step assistant to assemble facts, organize exhibits, and generate a structured legal dossier.
+            Step-by-step assistant to assemble facts, organize exhibits, and compile a structured case preparation report.
           </p>
         </div>
 
@@ -76,7 +76,7 @@ export function PrepareCaseView({
             className="rounded-xl text-xs font-semibold gap-1.5"
           >
             <Download className="h-3.5 w-3.5" />
-            <span>Export Brief</span>
+            <span>Export Summary</span>
           </Button>
         </div>
       </div>
@@ -131,7 +131,7 @@ export function PrepareCaseView({
                   Step 1: What Happened?
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Provide the core facts in plain language. NyaySetu extracts relevant dates, parties, and causes of action.
+                  Provide the core facts in plain language. NyaySetu helps organize dates, parties, and transaction records.
                 </p>
               </div>
             </div>
@@ -178,18 +178,18 @@ export function PrepareCaseView({
 
               <div className="sm:col-span-2 space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Specific Resolution or Remedy Desired</label>
-                <Input defaultValue="Full refund of ₹24,999 plus ₹5,000 compensation for mental harassment." />
+                <Input defaultValue="Full refund of ₹24,999 plus reimbursement of courier and repair costs." />
               </div>
             </div>
 
-            {/* AI Assistant Assessment Box */}
+            {/* REPLACED: Relevant information & considerations (Not deciding which statute legally applies) */}
             <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4">
               <div className="flex items-center gap-2 text-xs font-bold text-indigo-700 pb-1">
-                <Sparkles className="h-4 w-4" />
-                <span>Extracted Legal Qualification</span>
+                <Info className="h-4 w-4" />
+                <span>Relevant information & considerations</span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Appears actionable under <strong>Consumer Protection Act 2019</strong> (Deficiency of Goods under Section 2(47), Unfair Trade Practice under Section 2(47)(viii)). The limitation period is <strong>2 years</strong> from the date of refusal (expires Jan 2026).
+                Disputes involving product defects and refund refusal commonly reference provisions under the <strong>Consumer Protection Act 2019</strong> (such as deficiency in goods or unfair trade practices). Under Section 69, complaints are typically subject to a 2-year limitation window from the date the cause of action arose. Consult an advocate to determine applicable statutory grounds.
               </p>
             </div>
 
@@ -218,7 +218,7 @@ export function PrepareCaseView({
                   Step 2: Add Relevant Documents & Evidence
                 </h2>
                 <p className="text-xs text-slate-500">
-                  In formal proceedings, assertions without documentary proof are dismissed. Upload your invoices, receipts, and chats.
+                  Organize supporting materials (invoices, receipts, communications) that back up your factual assertions.
                 </p>
               </div>
             </div>
@@ -295,7 +295,7 @@ export function PrepareCaseView({
                   Step 3: Build an Unbroken Chronological Timeline
                 </h2>
                 <p className="text-xs text-slate-500">
-                  A coherent timeline establishes clear cause and effect and disproves claims of delayed communication.
+                  Chronological records clarify the chain of events and demonstrate timely notices given to the opposing party.
                 </p>
               </div>
             </div>
@@ -370,10 +370,10 @@ export function PrepareCaseView({
               </div>
               <div>
                 <h2 className="font-heading text-lg font-bold text-slate-900">
-                  Step 4: Connect Evidence to Events & Legal Claims
+                  Step 4: Connect Evidence to Events & Potential Claims
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Every legal contention requires concrete exhibits to avoid dismissal as unsupported assertions.
+                  Tie documentary proof directly to each factual grievance so your advocate or forum has clean exhibit indexing.
                 </p>
               </div>
             </div>
@@ -382,12 +382,12 @@ export function PrepareCaseView({
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="font-heading text-sm font-bold text-slate-900">
-                    Contention 1: Deficiency in Goods (Section 2(47))
+                    Contention 1: Defective Condition on Arrival
                   </h3>
                   <Badge variant="success">Evidence Linked</Badge>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Product delivered was dead on arrival and failed fitness of purpose.
+                  Product delivered was dead on arrival and could not be powered on.
                 </p>
                 <div className="flex flex-wrap gap-2 pt-2">
                   <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -405,12 +405,12 @@ export function PrepareCaseView({
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="font-heading text-sm font-bold text-slate-900">
-                    Contention 2: Unfair Trade Practice (Section 2(47)(viii))
+                    Contention 2: Denial of Published Return Terms
                   </h3>
                   <Badge variant="success">Evidence Linked</Badge>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Arbitrarily denying 7-day replacement promise published on sales website.
+                  Denying replacement despite 7-day replacement window advertised on the website.
                 </p>
                 <div className="flex flex-wrap gap-2 pt-2">
                   <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -459,7 +459,7 @@ export function PrepareCaseView({
                   Step 5: Identify Missing Information & Evidence Gaps
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Anticipate the opposite party's defense objections before you submit your formal grievance.
+                  Review document gaps that might be questioned during formal dispute resolution.
                 </p>
               </div>
             </div>
@@ -472,10 +472,10 @@ export function PrepareCaseView({
                     <h3 className="text-xs font-bold text-slate-900">
                       Product Serial Number / IMEI Photo
                     </h3>
-                    <Badge variant="destructive">High Priority</Badge>
+                    <Badge variant="destructive">Missing</Badge>
                   </div>
                   <p className="text-xs text-slate-600">
-                    The merchant may argue that the defective phone shown in photo E03 is not the unit billed under invoice E01. A photo of the IMEI barcode on the retail box closes this defense.
+                    Helps link the defective unit shown in photo E03 directly to the item described on tax invoice E01.
                   </p>
                   <Button
                     variant="outline"
@@ -498,7 +498,7 @@ export function PrepareCaseView({
                     <Badge variant="warning">Recommended</Badge>
                   </div>
                   <p className="text-xs text-slate-600">
-                    Having the stamped warranty leaflet eliminates objections regarding authorized dealer servicing.
+                    Having the stamped warranty leaflet eliminates questions regarding dealer servicing authorization.
                   </p>
                 </div>
               </div>
@@ -525,7 +525,7 @@ export function PrepareCaseView({
           </div>
         )}
 
-        {/* STEP 6: GENERATE STRUCTURED CASE SUMMARY */}
+        {/* STEP 6: STRUCTURED CASE SUMMARY / CASE PREPARATION REPORT */}
         {currentStep === 6 && (
           <div className="space-y-6">
             <div className="flex items-start gap-3 border-b border-slate-100 pb-4">
@@ -534,23 +534,23 @@ export function PrepareCaseView({
               </div>
               <div>
                 <h2 className="font-heading text-lg font-bold text-slate-900">
-                  Step 6: Structured Case Summary & Draft Dossier
+                  Step 6: Structured Case Summary
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Your structured case brief is compiled and ready for review or export.
+                  Your Case Preparation Report has been synthesized from your inputs. Export or share with your legal counsel.
                 </p>
               </div>
             </div>
 
-            {/* Formal Legal Brief Box */}
+            {/* Case Preparation Report Box */}
             <div className="rounded-2xl border-2 border-slate-800 bg-white p-6 shadow-sm font-serif space-y-5">
               <div className="border-b border-slate-800 pb-3 flex justify-between items-start font-sans">
                 <div>
                   <h3 className="font-bold text-sm text-slate-900 uppercase tracking-wider">
-                    Case Preparation Brief (Consumer Redressal)
+                    Structured Case Preparation Report
                   </h3>
                   <span className="text-[11px] text-slate-500">
-                    Target Forum: District Consumer Disputes Redressal Commission, Bangalore Urban
+                    Prepared for Advocate Consultation / Personal Reference • NyaySetu Preparation Docket
                   </span>
                 </div>
                 <Badge variant="purple" className="text-[10px]">Ref: NS-2024-0456</Badge>
@@ -558,33 +558,33 @@ export function PrepareCaseView({
 
               <div className="space-y-1">
                 <h4 className="font-sans text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  I. Parties
+                  I. Parties to Dispute
                 </h4>
                 <p className="text-xs text-slate-700">
-                  <strong>Complainant:</strong> Ananya Sharma, Resident of Bangalore Urban, Karnataka.<br />
+                  <strong>Complainant:</strong> Ananya Sharma, Bangalore Urban, Karnataka.<br />
                   <strong>Opposite Party:</strong> ABC Store Pvt Ltd (abc.store@gmail.com).
                 </p>
               </div>
 
               <div className="space-y-1">
                 <h4 className="font-sans text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  II. Summary of Facts
+                  II. Chronological Statement of Facts
                 </h4>
                 <ol className="list-decimal pl-5 text-xs text-slate-700 space-y-1">
-                  <li>On 10-01-2024, Complainant purchased a smartphone for ₹24,999/- via Opp. Party website (Exhibit E01).</li>
-                  <li>On 13-01-2024, the product was delivered and found dead on arrival (Exhibits E03, E08).</li>
-                  <li>Between 14-01-2024 and 20-01-2024, replacement grievances were logged with merchant support (Exhibit E04).</li>
-                  <li>On 21-01-2024, Opp. Party refused refund in violation of warranty laws (Exhibit E06).</li>
+                  <li>On 10-01-2024, order placed for smartphone for consideration of ₹24,999/- (Exhibit E01).</li>
+                  <li>On 13-01-2024, package was delivered and defect was identified on first unboxing (Exhibits E03, E08).</li>
+                  <li>Between 14-01-2024 and 20-01-2024, grievance was registered with merchant customer support (Exhibit E04).</li>
+                  <li>On 21-01-2024, merchant declined refund citing unsealed packaging policy (Exhibit E06).</li>
                 </ol>
               </div>
 
               <div className="space-y-1">
                 <h4 className="font-sans text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  III. Relief Claimed
+                  III. Desired Remedy / Relief
                 </h4>
                 <p className="text-xs text-slate-700">
-                  1. Full refund of consideration paid: <strong>₹24,999/-</strong> with 9% interest.<br />
-                  2. Hardship and litigation compensation: <strong>₹5,000/-</strong>.
+                  1. Full refund of paid consideration: <strong>₹24,999/-</strong>.<br />
+                  2. Courier and verification expenses.
                 </p>
               </div>
 
@@ -600,6 +600,11 @@ export function PrepareCaseView({
                   <span className="rounded bg-slate-100 px-2 py-0.5 border border-slate-200">E06: Denial Email</span>
                   <span className="rounded bg-slate-100 px-2 py-0.5 border border-slate-200">E07: Policy Copy</span>
                 </div>
+              </div>
+
+              {/* Disclaimer at bottom of brief */}
+              <div className="pt-3 border-t border-slate-200 text-[10.5px] italic text-slate-400 font-sans">
+                Notice: This Structured Case Summary is organized for factual clarity and personal preparation. It does not constitute formal legal counsel or a finalized court pleading.
               </div>
             </div>
 
@@ -619,7 +624,7 @@ export function PrepareCaseView({
                   className="gap-1.5 rounded-xl text-xs font-semibold"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  <span>Print Brief</span>
+                  <span>Print Case Report</span>
                 </Button>
                 <Button
                   variant="primary"

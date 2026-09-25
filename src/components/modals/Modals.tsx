@@ -288,7 +288,7 @@ export function FilingProcessModal({ isOpen, onClose }: FilingProcessModalProps)
       title={
         <div className="flex items-center gap-2 text-indigo-700">
           <Landmark className="h-5 w-5" />
-          <span>District Consumer Disputes Redressal Commission Guide</span>
+          <span>Potential Filing Channel: District Consumer Commission</span>
         </div>
       }
       footer={
@@ -309,6 +309,10 @@ export function FilingProcessModal({ isOpen, onClose }: FilingProcessModalProps)
       }
     >
       <div className="space-y-4 text-xs">
+        <div className="rounded-xl bg-slate-50 p-2.5 text-[11px] text-slate-500 border border-slate-200 leading-snug">
+          <strong>Notice:</strong> Based on the information provided, this channel may be relevant. NyaySetu provides procedural information only and does not replace qualified legal counsel.
+        </div>
+
         <div className="flex flex-wrap gap-2">
           <Badge variant="purple">Bangalore Urban District</Badge>
           <Badge variant="success">Pecuniary Limit: Up to ₹50 Lakhs</Badge>

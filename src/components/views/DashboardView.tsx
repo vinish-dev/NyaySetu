@@ -118,7 +118,7 @@ export function DashboardView({
           </div>
           <div>
             <span className="block text-2xl font-extrabold text-slate-900 leading-tight">82%</span>
-            <span className="block text-[11px] font-medium text-slate-400">Avg. Readiness</span>
+            <span className="block text-[11px] font-medium text-slate-400">Avg. Completion</span>
           </div>
         </Card>
 
@@ -128,7 +128,7 @@ export function DashboardView({
           </div>
           <div>
             <span className="block text-2xl font-extrabold text-slate-900 leading-tight">4</span>
-            <span className="block text-[11px] font-medium text-slate-400">Missing Pieces</span>
+            <span className="block text-[11px] font-medium text-slate-400">Pending Items</span>
           </div>
         </Card>
 
@@ -138,7 +138,7 @@ export function DashboardView({
           </div>
           <div>
             <span className="block text-2xl font-extrabold text-slate-900 leading-tight">14</span>
-            <span className="block text-[11px] font-medium text-slate-400">Verified Exhibits</span>
+            <span className="block text-[11px] font-medium text-slate-400">Indexed Exhibits</span>
           </div>
         </Card>
       </div>
@@ -183,7 +183,7 @@ export function DashboardView({
                       {c.title}
                     </h3>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
-                      {c.progress}% Ready
+                      {c.progress}% Prepared
                     </span>
                   </div>
 
