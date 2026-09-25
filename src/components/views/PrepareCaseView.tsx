@@ -15,7 +15,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Download,
-  Plus
+  Plus,
+  Sparkles,
+  Loader2,
+  FileText,
+  RotateCcw
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,16 +28,78 @@ import { Input } from '@/components/ui/input';
 
 interface PrepareCaseViewProps {
   onFinishWizard: () => void;
-  onOpenUploadEvidence: () => void;
-  onOpenAddEvent: () => void;
+  onOpenUploadEvidence?: () => void;
+  onOpenAddEvent?: () => void;
 }
 
 export function PrepareCaseView({
   onFinishWizard,
-  onOpenUploadEvidence,
   onOpenAddEvent,
 }: PrepareCaseViewProps) {
   const [currentStep, setCurrentStep] = React.useState(1);
+
+  // Form State
+  const [caseTitle, setCaseTitle] = React.useState('Defective Product – Refund Denied');
+  const [category, setCategory] = React.useState('Consumer Dispute (Deficiency in Goods / Service)');
+  const [opposingParty, setOpposingParty] = React.useState('ABC Store Pvt Ltd (abc.store@gmail.com)');
+  const [incidentDate, setIncidentDate] = React.useState('2024-01-10');
+  const [location, setLocation] = React.useState('Bangalore, Karnataka');
+  const [narrative, setNarrative] = React.useState(
+    "I purchased a smartphone from ABC Store on 10 Jan 2024 for ₹24,999. The package was delivered on 13 Jan 2024. Right after opening, the phone wouldn't turn on or charge. I promptly informed the store customer care on 14 Jan via WhatsApp and email. They promised an inspection within 48 hours, but on 21 Jan 2024, they flatly refused replacement stating opened items cannot be returned, violating their published return policy."
+  );
+  const [desiredResolution, setDesiredResolution] = React.useState(
+    'Full refund of ₹24,999 plus reimbursement of courier and repair costs.'
+  );
+  const [relevantConsiderations, setRelevantConsiderations] = React.useState(
+    'Disputes involving product defects and refund refusal commonly reference provisions under the Consumer Protection Act 2019 (such as deficiency in goods or unfair trade practices). Under Section 69, complaints are typically subject to a 2-year limitation window from the date the cause of action arose. Consult an advocate to determine applicable statutory grounds.'
+  );
+
+  // Evidence Items State
+  const [evidenceList, setEvidenceList] = React.useState([
+    { code: 'E01', title: 'Tax Invoice #29381', meta: 'PDF • 10 Jan 2024', verified: true },
+    { code: 'E02', title: 'UPI Bank Confirmation', meta: 'PNG • 12 Jan 2024', verified: true },
+    { code: 'E03', title: 'Product Defect Photo', meta: 'JPG • 13 Jan 2024', verified: true },
+    { code: 'E04', title: 'WhatsApp Chat Log', meta: 'TXT • 14 Jan 2024', verified: true },
+  ]);
+
+  // Timeline Events State
+  const [timelineEvents, setTimelineEvents] = React.useState([
+    { date: '2024-01-10', title: 'Order placed on ABC Store online portal', evidence: 'E01 Linked' },
+    { date: '2024-01-13', title: 'Package delivered; defect identified within 2 hours', evidence: 'E03 Linked' },
+    { date: '2024-01-14', title: 'Customer service contacted via WhatsApp', evidence: 'E04 Linked' },
+    { date: '2024-01-21', title: 'Seller refused refund citing unsealed box exclusion', evidence: 'E06 Linked' },
+  ]);
+
+  // Contentions State
+  const [contentions, setContentions] = React.useState([
+    {
+      title: 'Contention 1: Defective Condition on Arrival',
+      desc: 'Product delivered was dead on arrival and could not be powered on.',
+      exhibits: ['✓ E01 Invoice', '✓ E03 Photo (Defect)', '✓ E08 Delivery Slip'],
+    },
+    {
+      title: 'Contention 2: Denial of Published Return Terms',
+      desc: 'Denying replacement despite 7-day replacement window advertised on the website.',
+      exhibits: ['✓ E04 WhatsApp Chat', '✓ E06 Denial Letter', '✓ E07 Return Policy'],
+    },
+  ]);
+
+  // Completeness State
+  const [completenessScore, setCompletenessScore] = React.useState(82);
+  const [checklist, setChecklist] = React.useState([
+    { name: 'Incident details', status: 'complete' },
+    { name: 'Timeline', status: 'complete' },
+    { name: 'Payment proof', status: 'complete' },
+    { name: 'Communication records', status: 'complete' },
+    { name: 'Product serial/IMEI', status: 'missing' },
+    { name: 'Warranty document', status: 'missing' },
+  ]);
+
+  // Loading States for GenAI
+  const [isAiLoading, setIsAiLoading] = React.useState(false);
+  const [aiLoadingMsg, setAiLoadingMsg] = React.useState('');
+
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const steps = [
     { num: 1, label: 'What Happened?', icon: PenTool },
@@ -44,8 +110,194 @@ export function PrepareCaseView({
     { num: 6, label: 'Case Summary', icon: FileCheck },
   ];
 
+  // STEP 1: Gemini Fact Extraction
+  const handleExtractFactsWithGemini = async () => {
+    if (!narrative.trim()) return;
+    setIsAiLoading(true);
+    setAiLoadingMsg('Extracting structured facts with Gemini...');
+
+    try {
+      const res = await fetch('/api/case-prep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'extract-facts',
+          payload: { narrative, category },
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to extract facts');
+      const json = await res.json();
+      const facts = json.data;
+
+      if (facts.title) setCaseTitle(facts.title);
+      if (facts.incidentDate) setIncidentDate(facts.incidentDate);
+      if (facts.location) setLocation(facts.location);
+      if (facts.involvedParty) setOpposingParty(facts.involvedParty);
+      if (facts.desiredResolution) setDesiredResolution(facts.desiredResolution);
+      if (facts.relevantConsiderations) setRelevantConsiderations(facts.relevantConsiderations);
+    } catch (err: any) {
+      console.error(err);
+      alert('Could not extract facts automatically. You can proceed with manual entry.');
+    } finally {
+      setIsAiLoading(false);
+      setAiLoadingMsg('');
+    }
+  };
+
+  // STEP 2: Real Document Upload in Evidence Vault
+  const handleUploadEvidenceFile = async (file: File) => {
+    if (!file) return;
+    setIsAiLoading(true);
+    setAiLoadingMsg(`Analyzing ${file.name} with Gemini...`);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/analyze-document', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const nextCode = `E0${evidenceList.length + 1}`;
+      let title = file.name;
+      let meta = `${(file.size / 1024).toFixed(0)} KB • Live Upload`;
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data?.title) title = json.data.title;
+        if (json.data?.meta) meta = json.data.meta;
+      }
+
+      setEvidenceList((prev) => [
+        ...prev,
+        { code: nextCode, title, meta, verified: true },
+      ]);
+    } catch (err) {
+      console.error(err);
+      // Fallback add
+      const nextCode = `E0${evidenceList.length + 1}`;
+      setEvidenceList((prev) => [
+        ...prev,
+        { code: nextCode, title: file.name, meta: `${(file.size / 1024).toFixed(0)} KB`, verified: true },
+      ]);
+    } finally {
+      setIsAiLoading(false);
+      setAiLoadingMsg('');
+    }
+  };
+
+  // STEP 3: Auto-Generate Timeline with AI
+  const handleGenerateTimeline = async () => {
+    setIsAiLoading(true);
+    setAiLoadingMsg('Building chronological timeline with Gemini...');
+
+    try {
+      const res = await fetch('/api/case-prep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate-timeline',
+          payload: { narrative, evidence: evidenceList },
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to generate timeline');
+      const json = await res.json();
+      if (json.data?.events && json.data.events.length > 0) {
+        setTimelineEvents(
+          json.data.events.map((ev: any) => ({
+            date: ev.date || 'Jan 2024',
+            title: ev.title || 'Milestone',
+            evidence: ev.linkedEvidence?.[0] ? `${ev.linkedEvidence[0]} Linked` : 'Verified',
+          }))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAiLoading(false);
+      setAiLoadingMsg('');
+    }
+  };
+
+  // STEP 4: AI Map Claims to Evidence
+  const handleMapClaims = async () => {
+    setIsAiLoading(true);
+    setAiLoadingMsg('Linking documentary evidence to contentions...');
+
+    try {
+      const res = await fetch('/api/case-prep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'map-claims',
+          payload: { narrative, evidence: evidenceList },
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to map claims');
+      const json = await res.json();
+      if (json.data?.contentions && json.data.contentions.length > 0) {
+        setContentions(
+          json.data.contentions.map((c: any) => ({
+            title: c.title,
+            desc: c.description || c.statutoryReference,
+            exhibits: (c.linkedEvidence || []).map((e: string) => `✓ ${e}`),
+          }))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAiLoading(false);
+      setAiLoadingMsg('');
+    }
+  };
+
+  // STEP 5: Audit Gaps with AI
+  const handleAuditGaps = async () => {
+    setIsAiLoading(true);
+    setAiLoadingMsg('Auditing evidence completeness with Gemini...');
+
+    try {
+      const res = await fetch('/api/case-prep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'detect-gaps',
+          payload: { narrative, evidence: evidenceList },
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to audit gaps');
+      const json = await res.json();
+      if (json.data?.completionScore) setCompletenessScore(json.data.completionScore);
+      if (json.data?.checklist) setChecklist(json.data.checklist);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAiLoading(false);
+      setAiLoadingMsg('');
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Hidden File Input for Real Evidence Upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept=".pdf,.txt,.png,.jpg,.jpeg,.webp,application/pdf,text/plain,image/*"
+        onChange={(e) => {
+          if (e.target.files && e.target.files[0]) {
+            handleUploadEvidenceFile(e.target.files[0]);
+          }
+        }}
+      />
+
       {/* Wizard Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -56,7 +308,7 @@ export function PrepareCaseView({
             Guided Case Preparation Workflow
           </h1>
           <p className="text-xs text-slate-500 max-w-2xl">
-            Step-by-step assistant to assemble facts, organize exhibits, and compile a structured case preparation report.
+            Step-by-step assistant powered by Gemini to assemble facts, organize exhibits, and compile a structured case preparation report.
           </p>
         </div>
 
@@ -118,33 +370,61 @@ export function PrepareCaseView({
       </div>
 
       {/* Wizard Body Card */}
-      <Card className="p-6 md:p-8">
+      <Card className="p-6 md:p-8 relative overflow-hidden">
+        {/* AI Loading Overlay */}
+        {isAiLoading && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/80 backdrop-blur-xs p-6 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mb-2" />
+            <p className="text-sm font-bold text-slate-800">{aiLoadingMsg}</p>
+            <span className="text-xs text-slate-400">Processing structured data with Gemini 2.5...</span>
+          </div>
+        )}
+
         {/* STEP 1: WHAT HAPPENED? */}
         {currentStep === 1 && (
           <div className="space-y-6">
-            <div className="flex items-start gap-3 border-b border-slate-100 pb-4">
-              <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
-                <PenTool className="h-5 w-5" />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
+                  <PenTool className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-heading text-lg font-bold text-slate-900">
+                    Step 1: What Happened?
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Provide the core facts in plain language. NyaySetu helps organize dates, parties, and transaction records.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-heading text-lg font-bold text-slate-900">
-                  Step 1: What Happened?
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Provide the core facts in plain language. NyaySetu helps organize dates, parties, and transaction records.
-                </p>
-              </div>
+              <Button
+                variant="outlinePurple"
+                size="sm"
+                onClick={handleExtractFactsWithGemini}
+                disabled={isAiLoading}
+                className="rounded-xl text-xs font-semibold gap-1.5 shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Auto-Extract with Gemini</span>
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2 space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Case Title / Topic</label>
-                <Input defaultValue="Defective Product – Refund Denied" />
+                <Input
+                  value={caseTitle}
+                  onChange={(e) => setCaseTitle(e.target.value)}
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Dispute Category</label>
-                <select className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800">
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 focus:outline-indigo-500"
+                >
                   <option>Consumer Dispute (Deficiency in Goods / Service)</option>
                   <option>Tenancy & Real Estate (RERA / Deposit)</option>
                   <option>Employment & Salary Delay</option>
@@ -154,42 +434,59 @@ export function PrepareCaseView({
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Opposing Party Name & Contact</label>
-                <Input defaultValue="ABC Store Pvt Ltd (abc.store@gmail.com)" />
+                <Input
+                  value={opposingParty}
+                  onChange={(e) => setOpposingParty(e.target.value)}
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Primary Incident Date</label>
-                <Input type="date" defaultValue="2024-01-10" />
+                <Input
+                  type="date"
+                  value={incidentDate}
+                  onChange={(e) => setIncidentDate(e.target.value)}
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Location / City of Transaction</label>
-                <Input defaultValue="Bangalore, Karnataka" />
+                <Input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
               </div>
 
               <div className="sm:col-span-2 space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Incident Narrative (In your own words)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Incident Narrative (In your own words)</label>
+                  <span className="text-[11px] text-slate-400">Gemini analyzes this text</span>
+                </div>
                 <textarea
                   rows={4}
-                  defaultValue="I purchased a smartphone from ABC Store on 10 Jan 2024 for ₹24,999. The package was delivered on 13 Jan 2024. Right after opening, the phone wouldn't turn on or charge. I promptly informed the store customer care on 14 Jan via WhatsApp and email. They promised an inspection within 48 hours, but on 21 Jan 2024, they flatly refused replacement stating opened items cannot be returned, violating their published return policy."
-                  className="w-full rounded-lg border border-slate-200 p-3 text-xs text-slate-800 focus:outline-indigo-500"
+                  value={narrative}
+                  onChange={(e) => setNarrative(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 p-3 text-xs text-slate-800 focus:outline-indigo-500 font-sans"
                 />
               </div>
 
               <div className="sm:col-span-2 space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Specific Resolution or Remedy Desired</label>
-                <Input defaultValue="Full refund of ₹24,999 plus reimbursement of courier and repair costs." />
+                <Input
+                  value={desiredResolution}
+                  onChange={(e) => setDesiredResolution(e.target.value)}
+                />
               </div>
             </div>
 
-            {/* REPLACED: Relevant information & considerations (Not deciding which statute legally applies) */}
+            {/* Relevant information & considerations */}
             <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4">
               <div className="flex items-center gap-2 text-xs font-bold text-indigo-700 pb-1">
                 <Info className="h-4 w-4" />
                 <span>Relevant information & considerations</span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Disputes involving product defects and refund refusal commonly reference provisions under the <strong>Consumer Protection Act 2019</strong> (such as deficiency in goods or unfair trade practices). Under Section 69, complaints are typically subject to a 2-year limitation window from the date the cause of action arose. Consult an advocate to determine applicable statutory grounds.
+                {relevantConsiderations}
               </p>
             </div>
 
@@ -218,13 +515,18 @@ export function PrepareCaseView({
                   Step 2: Add Relevant Documents & Evidence
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Organize supporting materials (invoices, receipts, communications) that back up your factual assertions.
+                  Upload real documents (PDF, TXT, Images). Gemini identifies the document type, extracts key details, and catalogs it.
                 </p>
               </div>
             </div>
 
             <div
-              onClick={onOpenUploadEvidence}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files?.[0]) handleUploadEvidenceFile(e.dataTransfer.files[0]);
+              }}
               className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-8 text-center transition-colors hover:border-indigo-400 hover:bg-indigo-50/20 cursor-pointer"
             >
               <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-600">
@@ -234,31 +536,24 @@ export function PrepareCaseView({
                 Drag and drop files here, or <span className="text-indigo-600 font-extrabold">browse files</span>
               </h3>
               <p className="mt-1 text-xs text-slate-400">
-                Supports PDF, JPG, PNG, TXT, EML up to 50MB. Cryptographically encrypted.
+                Supports <strong>PDF</strong>, <strong>TXT</strong>, and <strong>Images</strong> (PNG, JPG, WEBP). Analyzed with Gemini.
               </p>
             </div>
 
-            {/* Existing Vault Items */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-1">
-                <Badge variant="purple" className="text-[10px]">E01</Badge>
-                <h4 className="text-xs font-bold text-slate-800 truncate">Tax Invoice #29381</h4>
-                <p className="text-[10px] text-slate-400">PDF • 10 Jan 2024</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-1">
-                <Badge variant="purple" className="text-[10px]">E02</Badge>
-                <h4 className="text-xs font-bold text-slate-800 truncate">UPI Bank Confirmation</h4>
-                <p className="text-[10px] text-slate-400">PNG • 12 Jan 2024</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-1">
-                <Badge variant="purple" className="text-[10px]">E03</Badge>
-                <h4 className="text-xs font-bold text-slate-800 truncate">Product Defect Photo</h4>
-                <p className="text-[10px] text-slate-400">JPG • 13 Jan 2024</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-1">
-                <Badge variant="purple" className="text-[10px]">E04</Badge>
-                <h4 className="text-xs font-bold text-slate-800 truncate">WhatsApp Chat Log</h4>
-                <p className="text-[10px] text-slate-400">TXT • 14 Jan 2024</p>
+            {/* Evidence Vault Items */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-slate-700 block">Cataloged Exhibits ({evidenceList.length}):</span>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {evidenceList.map((item, idx) => (
+                  <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="purple" className="text-[10px]">{item.code}</Badge>
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-800 truncate">{item.title}</h4>
+                    <p className="text-[10px] text-slate-400">{item.meta}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -286,53 +581,51 @@ export function PrepareCaseView({
         {/* STEP 3: BUILD TIMELINE */}
         {currentStep === 3 && (
           <div className="space-y-6">
-            <div className="flex items-start gap-3 border-b border-slate-100 pb-4">
-              <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
-                <Calendar className="h-5 w-5" />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-heading text-lg font-bold text-slate-900">
+                    Step 3: Build an Unbroken Chronological Timeline
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Chronological records demonstrate a continuous chain of events and prove timely notice.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-heading text-lg font-bold text-slate-900">
-                  Step 3: Build an Unbroken Chronological Timeline
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Chronological records clarify the chain of events and demonstrate timely notices given to the opposing party.
-                </p>
-              </div>
+              <Button
+                variant="outlinePurple"
+                size="sm"
+                onClick={handleGenerateTimeline}
+                disabled={isAiLoading}
+                className="rounded-xl text-xs font-semibold gap-1.5 shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Auto-Synthesize with Gemini</span>
+              </Button>
             </div>
 
             <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5">
-                <span className="font-bold text-indigo-600 text-xs w-16">Event 1</span>
-                <Input type="date" defaultValue="2024-01-10" className="w-full sm:w-40" />
-                <Input defaultValue="Order placed on ABC Store online portal" className="flex-1" />
-                <Badge variant="success" className="text-[10px]">E01 Linked</Badge>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5">
-                <span className="font-bold text-indigo-600 text-xs w-16">Event 2</span>
-                <Input type="date" defaultValue="2024-01-13" className="w-full sm:w-40" />
-                <Input defaultValue="Package delivered; defect identified within 2 hours" className="flex-1" />
-                <Badge variant="success" className="text-[10px]">E03 Linked</Badge>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5">
-                <span className="font-bold text-indigo-600 text-xs w-16">Event 3</span>
-                <Input type="date" defaultValue="2024-01-14" className="w-full sm:w-40" />
-                <Input defaultValue="Customer service contacted via WhatsApp" className="flex-1" />
-                <Badge variant="success" className="text-[10px]">E04 Linked</Badge>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5">
-                <span className="font-bold text-indigo-600 text-xs w-16">Event 4</span>
-                <Input type="date" defaultValue="2024-01-21" className="w-full sm:w-40" />
-                <Input defaultValue="Seller refused refund citing unsealed box exclusion" className="flex-1" />
-                <Badge variant="success" className="text-[10px]">E06 Linked</Badge>
-              </div>
+              {timelineEvents.map((ev, idx) => (
+                <div key={idx} className="flex flex-col sm:flex-row items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5">
+                  <span className="font-bold text-indigo-600 text-xs w-16">Event {idx + 1}</span>
+                  <Input type="text" defaultValue={ev.date} className="w-full sm:w-40 font-mono text-xs" />
+                  <Input defaultValue={ev.title} className="flex-1 text-xs" />
+                  <Badge variant="success" className="text-[10px] shrink-0">{ev.evidence}</Badge>
+                </div>
+              ))}
 
               <Button
                 variant="outline"
                 size="sm"
-                onClick={onOpenAddEvent}
+                onClick={() =>
+                  setTimelineEvents((prev) => [
+                    ...prev,
+                    { date: '2024-01-25', title: 'Follow-up communication lodged', evidence: 'Pending' },
+                  ])
+                }
                 className="w-full justify-center gap-1.5 rounded-xl text-xs font-semibold"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -364,66 +657,51 @@ export function PrepareCaseView({
         {/* STEP 4: CONNECT EVIDENCE TO EVENTS & CLAIMS */}
         {currentStep === 4 && (
           <div className="space-y-6">
-            <div className="flex items-start gap-3 border-b border-slate-100 pb-4">
-              <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
-                <LinkIcon className="h-5 w-5" />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
+                  <LinkIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-heading text-lg font-bold text-slate-900">
+                    Step 4: Connect Evidence to Events & Potential Claims
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Tie documentary proof directly to each factual grievance so your advocate or forum has clean exhibit indexing.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-heading text-lg font-bold text-slate-900">
-                  Step 4: Connect Evidence to Events & Potential Claims
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Tie documentary proof directly to each factual grievance so your advocate or forum has clean exhibit indexing.
-                </p>
-              </div>
+              <Button
+                variant="outlinePurple"
+                size="sm"
+                onClick={handleMapClaims}
+                disabled={isAiLoading}
+                className="rounded-xl text-xs font-semibold gap-1.5 shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>AI Map Exhibits to Claims</span>
+              </Button>
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-heading text-sm font-bold text-slate-900">
-                    Contention 1: Defective Condition on Arrival
-                  </h3>
-                  <Badge variant="success">Evidence Linked</Badge>
+              {contentions.map((c, idx) => (
+                <div key={idx} className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-heading text-sm font-bold text-slate-900">
+                      {c.title}
+                    </h3>
+                    <Badge variant="success">Evidence Linked</Badge>
+                  </div>
+                  <p className="text-xs text-slate-500">{c.desc}</p>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {c.exhibits.map((ex, eIdx) => (
+                      <span key={eIdx} className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                        {ex}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-xs text-slate-500">
-                  Product delivered was dead on arrival and could not be powered on.
-                </p>
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                    ✓ E01 Invoice
-                  </span>
-                  <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                    ✓ E03 Photo (Defect)
-                  </span>
-                  <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                    ✓ E08 Delivery Slip
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-heading text-sm font-bold text-slate-900">
-                    Contention 2: Denial of Published Return Terms
-                  </h3>
-                  <Badge variant="success">Evidence Linked</Badge>
-                </div>
-                <p className="text-xs text-slate-500">
-                  Denying replacement despite 7-day replacement window advertised on the website.
-                </p>
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                    ✓ E04 WhatsApp Chat
-                  </span>
-                  <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                    ✓ E06 Denial Letter
-                  </span>
-                  <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                    ✓ E07 Return Policy
-                  </span>
-                </div>
-              </div>
+              ))}
             </div>
 
             <div className="flex justify-between pt-4 border-t border-slate-100">
@@ -450,18 +728,39 @@ export function PrepareCaseView({
         {/* STEP 5: IDENTIFY MISSING INFORMATION */}
         {currentStep === 5 && (
           <div className="space-y-6">
-            <div className="flex items-start gap-3 border-b border-slate-100 pb-4">
-              <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
-                <SearchCheck className="h-5 w-5" />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
+                  <SearchCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-heading text-lg font-bold text-slate-900">
+                    Step 5: Identify Missing Information & Evidence Gaps
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Gemini audits your narrative against uploaded exhibits to uncover missing pieces before you consult an advocate.
+                  </p>
+                </div>
               </div>
+              <Button
+                variant="outlinePurple"
+                size="sm"
+                onClick={handleAuditGaps}
+                disabled={isAiLoading}
+                className="rounded-xl text-xs font-semibold gap-1.5 shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Audit Completeness with Gemini</span>
+              </Button>
+            </div>
+
+            {/* Completion Metric */}
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4 border border-slate-200">
               <div>
-                <h2 className="font-heading text-lg font-bold text-slate-900">
-                  Step 5: Identify Missing Information & Evidence Gaps
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Review document gaps that might be questioned during formal dispute resolution.
-                </p>
+                <span className="text-[10px] font-bold uppercase text-slate-400">Documentation Completeness</span>
+                <h3 className="font-heading text-base font-extrabold text-slate-900">{completenessScore}% Complete</h3>
               </div>
+              <span className="text-xs text-slate-500 italic">Documentation completion metric, not a prediction of legal outcome.</span>
             </div>
 
             <div className="space-y-3">
@@ -472,15 +771,15 @@ export function PrepareCaseView({
                     <h3 className="text-xs font-bold text-slate-900">
                       Product Serial Number / IMEI Photo
                     </h3>
-                    <Badge variant="destructive">Missing</Badge>
+                    <Badge variant="destructive">Pending</Badge>
                   </div>
                   <p className="text-xs text-slate-600">
-                    Helps link the defective unit shown in photo E03 directly to the item described on tax invoice E01.
+                    Links the defective unit shown in photo E03 directly to the item described on tax invoice E01.
                   </p>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={onOpenUploadEvidence}
+                    onClick={() => fileInputRef.current?.click()}
                     className="mt-2 text-xs rounded-xl"
                   >
                     Upload Photo Now
@@ -537,7 +836,7 @@ export function PrepareCaseView({
                   Step 6: Structured Case Summary
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Your Case Preparation Report has been synthesized from your inputs. Export or share with your legal counsel.
+                  Your Case Preparation Report has been synthesized from your inputs and Gemini analysis.
                 </p>
               </div>
             </div>
@@ -561,8 +860,8 @@ export function PrepareCaseView({
                   I. Parties to Dispute
                 </h4>
                 <p className="text-xs text-slate-700">
-                  <strong>Complainant:</strong> Ananya Sharma, Bangalore Urban, Karnataka.<br />
-                  <strong>Opposite Party:</strong> ABC Store Pvt Ltd (abc.store@gmail.com).
+                  <strong>Complainant:</strong> Ananya Sharma, {location}.<br />
+                  <strong>Opposite Party:</strong> {opposingParty}.
                 </p>
               </div>
 
@@ -571,10 +870,9 @@ export function PrepareCaseView({
                   II. Chronological Statement of Facts
                 </h4>
                 <ol className="list-decimal pl-5 text-xs text-slate-700 space-y-1">
-                  <li>On 10-01-2024, order placed for smartphone for consideration of ₹24,999/- (Exhibit E01).</li>
-                  <li>On 13-01-2024, package was delivered and defect was identified on first unboxing (Exhibits E03, E08).</li>
-                  <li>Between 14-01-2024 and 20-01-2024, grievance was registered with merchant customer support (Exhibit E04).</li>
-                  <li>On 21-01-2024, merchant declined refund citing unsealed packaging policy (Exhibit E06).</li>
+                  {timelineEvents.map((ev, idx) => (
+                    <li key={idx}>On {ev.date}, {ev.title}.</li>
+                  ))}
                 </ol>
               </div>
 
@@ -583,8 +881,7 @@ export function PrepareCaseView({
                   III. Desired Remedy / Relief
                 </h4>
                 <p className="text-xs text-slate-700">
-                  1. Full refund of paid consideration: <strong>₹24,999/-</strong>.<br />
-                  2. Courier and verification expenses.
+                  {desiredResolution}
                 </p>
               </div>
 
@@ -593,12 +890,11 @@ export function PrepareCaseView({
                   IV. Exhibit Index
                 </h4>
                 <div className="flex flex-wrap gap-1.5 pt-1 text-[11px]">
-                  <span className="rounded bg-slate-100 px-2 py-0.5 border border-slate-200">E01: Invoice</span>
-                  <span className="rounded bg-slate-100 px-2 py-0.5 border border-slate-200">E02: UPI Slip</span>
-                  <span className="rounded bg-slate-100 px-2 py-0.5 border border-slate-200">E03: Defect Photo</span>
-                  <span className="rounded bg-slate-100 px-2 py-0.5 border border-slate-200">E04: Chat Log</span>
-                  <span className="rounded bg-slate-100 px-2 py-0.5 border border-slate-200">E06: Denial Email</span>
-                  <span className="rounded bg-slate-100 px-2 py-0.5 border border-slate-200">E07: Policy Copy</span>
+                  {evidenceList.map((e, idx) => (
+                    <span key={idx} className="rounded bg-slate-100 px-2 py-0.5 border border-slate-200">
+                      {e.code}: {e.title}
+                    </span>
+                  ))}
                 </div>
               </div>
 
