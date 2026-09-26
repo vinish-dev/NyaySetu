@@ -73,10 +73,12 @@ export function Sidebar({
             </div>
           </div>
           <button
+            type="button"
             onClick={onCloseMobile}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden"
+            aria-label="Close navigation sidebar"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden cursor-pointer"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -87,7 +89,7 @@ export function Sidebar({
             variant="primary"
             className="w-full justify-center gap-2 rounded-xl py-2.5 font-semibold text-sm shadow-sm"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden="true" />
             <span>New Case</span>
           </Button>
         </div>
@@ -98,13 +100,15 @@ export function Sidebar({
             <div className="px-3 pb-2 text-[10.5px] font-bold tracking-wider text-slate-400 uppercase">
               Main Workspace
             </div>
-            <nav className="space-y-1">
+            <nav className="space-y-1" aria-label="Main Navigation">
               {mainNav.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentTab === item.id;
                 return (
                   <button
                     key={item.id}
+                    type="button"
+                    aria-current={isActive ? 'page' : undefined}
                     onClick={() => {
                       onSelectTab(item.id);
                       onCloseMobile();
@@ -117,6 +121,7 @@ export function Sidebar({
                   >
                     <div className="flex items-center gap-3">
                       <Icon
+                        aria-hidden="true"
                         className={`h-4 w-4 transition-colors ${
                           isActive
                             ? 'text-indigo-600'

@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
+import { generateStructuredContent, sanitizeInput } from '@/lib/gemini';
 
 export const maxDuration = 60;
 
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB max payload
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'text/plain',
+]);
+
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'GEMINI_API_KEY is not configured in the server environment.' },
-        { status: 500 }
-      );
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const directText = formData.get('text') as string | null;
@@ -23,22 +23,35 @@ export async function POST(req: NextRequest) {
     let fileName = 'Uploaded Document';
 
     if (file) {
-      fileName = file.name;
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        return NextResponse.json(
+          { error: 'File size exceeds maximum allowable limit of 20MB.' },
+          { status: 413 }
+        );
+      }
+
+      fileName = sanitizeInput(file.name, 100) || 'Uploaded Document';
       const fileType = file.type || '';
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      if (fileType === 'application/pdf' || file.name.endsWith('.pdf')) {
-        // Native multimodal PDF ingest via Gemini
+      if (fileType === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
         inlinePart = {
           inlineData: {
             data: buffer.toString('base64'),
             mimeType: 'application/pdf',
           },
         };
-      } else if (fileType.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(file.name)) {
-        // Native multimodal Image ingest via Gemini
-        const mimeType = fileType || (file.name.endsWith('.png') ? 'image/png' : 'image/jpeg');
+      } else if (
+        fileType.startsWith('image/') ||
+        /\.(png|jpe?g|webp)$/i.test(file.name)
+      ) {
+        const mimeType = ALLOWED_MIME_TYPES.has(fileType)
+          ? fileType
+          : file.name.toLowerCase().endsWith('.png')
+          ? 'image/png'
+          : 'image/jpeg';
+
         inlinePart = {
           inlineData: {
             data: buffer.toString('base64'),
@@ -46,11 +59,10 @@ export async function POST(req: NextRequest) {
           },
         };
       } else {
-        // Plain text (.txt, markdown, etc.)
-        extractedText = buffer.toString('utf-8');
+        extractedText = sanitizeInput(buffer.toString('utf-8'), 50000);
       }
     } else if (directText) {
-      extractedText = directText;
+      extractedText = sanitizeInput(directText, 50000);
     } else {
       return NextResponse.json(
         { error: 'No document file or text provided for analysis.' },
@@ -66,7 +78,7 @@ CRITICAL TONE & COMPLIANCE RULES:
 1. Do NOT give conclusive legal judgments. Never use words like "Unenforceable" or declare a clause legally invalid.
 2. Use objective terms like "Potential concern", "Requires professional review", "Standard", or "Moderate".
 3. Emphasize that your findings are informational to prepare the citizen for a qualified advocate consultation.
-4. Output MUST be strictly valid JSON without any markdown code fences, matching this exact structure:
+4. Output MUST be strictly valid JSON matching this exact structure:
 
 {
   "title": "Clean, descriptive document title",
@@ -75,7 +87,7 @@ CRITICAL TONE & COMPLIANCE RULES:
   "importantClauses": [
     {
       "tag": "e.g., Clause 4 • Security Deposit",
-      "risk": "Standard" | "Potential concern" | "Requires professional review" | "Moderate",
+      "risk": "Standard",
       "raw": "Exact or closely paraphrased quote from the document text",
       "meaning": "What this means in plain words for the citizen"
     }
@@ -98,37 +110,40 @@ CRITICAL TONE & COMPLIANCE RULES:
 }
 `;
 
-    const contents: any[] = [];
+    const contents: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [];
     if (inlinePart) {
       contents.push(inlinePart);
     }
     if (extractedText) {
-      contents.push({ text: `Document Name: ${fileName}\n\nDocument Content:\n${extractedText.slice(0, 50000)}` });
+      contents.push({ text: `Document Name: ${fileName}\n\nDocument Content:\n${extractedText}` });
     }
     contents.push({ text: prompt });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const fallbackData = {
+      title: fileName,
+      meta: 'Document Record',
+      simplifiedExplanation: 'Document content processed for legal fact structuring.',
+      importantClauses: [],
+      obligations: [],
+      potentialConcerns: [],
+      inconsistencies: [],
+      questionsForProfessional: [],
+    };
+
+    const structuredResult = await generateStructuredContent({
       contents,
-      config: {
-        responseMimeType: 'application/json',
-      },
+      fallback: fallbackData,
     });
-
-    let rawText = response.text || '{}';
-    rawText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-
-    const parsedJson = JSON.parse(rawText);
 
     return NextResponse.json({
       success: true,
       fileName,
-      data: parsedJson,
+      data: structuredResult,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in analyze-document API:', error);
     return NextResponse.json(
-      { error: error?.message || 'Failed to analyze document with Gemini.' },
+      { error: 'An unexpected error occurred while processing the document. Please verify your file format and retry.' },
       { status: 500 }
     );
   }

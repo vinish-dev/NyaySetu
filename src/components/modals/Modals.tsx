@@ -23,7 +23,7 @@ import { EvidenceItem } from '@/data/mockData';
 interface UploadEvidenceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (title: string, type: string) => void;
+  onSubmit: (title: string, type: 'Document' | 'Image' | 'Chat' | 'Email', fileMeta?: string) => void;
 }
 
 export function UploadEvidenceModal({
@@ -32,7 +32,20 @@ export function UploadEvidenceModal({
   onSubmit,
 }: UploadEvidenceModalProps) {
   const [title, setTitle] = React.useState('');
-  const [type, setType] = React.useState('Document');
+  const [type, setType] = React.useState<'Document' | 'Image' | 'Chat' | 'Email'>('Document');
+  const [fileName, setFileName] = React.useState<string>('');
+  const [date, setDate] = React.useState<string>(() => new Date().toISOString().split('T')[0]);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setFileName(`${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+      if (!title) {
+        setTitle(file.name.replace(/\.[^/.]+$/, ''));
+      }
+    }
+  };
 
   return (
     <Modal
@@ -53,7 +66,9 @@ export function UploadEvidenceModal({
             variant="primary"
             size="sm"
             onClick={() => {
-              onSubmit(title || 'New Exhibit', type);
+              onSubmit(title || 'New Exhibit', type, fileName || 'User Attached File');
+              setTitle('');
+              setFileName('');
               onClose();
             }}
             className="rounded-xl"
@@ -77,7 +92,7 @@ export function UploadEvidenceModal({
           <label className="font-bold text-slate-700">Evidence Type</label>
           <select
             value={type}
-            onChange={(e) => setType(e.target.value)}
+            onChange={(e) => setType(e.target.value as any)}
             className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800"
           >
             <option value="Document">Document (PDF / Scan)</option>
@@ -89,13 +104,26 @@ export function UploadEvidenceModal({
 
         <div className="space-y-1">
           <label className="font-bold text-slate-700">Date of Document</label>
-          <Input type="date" defaultValue="2024-01-13" />
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
 
-        <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 p-6 text-center bg-slate-50/50 hover:bg-slate-50 cursor-pointer">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          className="hidden"
+          accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx"
+        />
+
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 p-6 text-center bg-slate-50/50 hover:bg-slate-50 cursor-pointer transition-colors"
+        >
           <UploadCloud className="h-6 w-6 text-slate-400 mb-1" />
-          <p className="font-bold text-slate-700 text-xs">Click to browse or drop file</p>
-          <span className="text-[10px] text-slate-400">PDF, PNG, JPG up to 50MB</span>
+          <p className="font-bold text-slate-700 text-xs">
+            {fileName ? fileName : 'Click to browse or drop file'}
+          </p>
+          <span className="text-[10px] text-slate-400">PDF, PNG, JPG, TXT up to 50MB</span>
         </div>
       </div>
     </Modal>
@@ -106,12 +134,15 @@ export function UploadEvidenceModal({
 interface AddEventModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (title: string, date: string) => void;
+  availableEvidence?: EvidenceItem[];
+  onSubmit: (title: string, date: string, description: string, linkedCode?: string) => void;
 }
 
-export function AddEventModal({ isOpen, onClose, onSubmit }: AddEventModalProps) {
+export function AddEventModal({ isOpen, onClose, availableEvidence = [], onSubmit }: AddEventModalProps) {
   const [title, setTitle] = React.useState('');
-  const [date, setDate] = React.useState('2024-01-22');
+  const [date, setDate] = React.useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [desc, setDesc] = React.useState('');
+  const [linkedExhibit, setLinkedExhibit] = React.useState('');
 
   return (
     <Modal
@@ -132,7 +163,9 @@ export function AddEventModal({ isOpen, onClose, onSubmit }: AddEventModalProps)
             variant="primary"
             size="sm"
             onClick={() => {
-              onSubmit(title || 'New Milestone', date);
+              onSubmit(title || 'New Milestone', date, desc, linkedExhibit || undefined);
+              setTitle('');
+              setDesc('');
               onClose();
             }}
             className="rounded-xl"
@@ -165,19 +198,30 @@ export function AddEventModal({ isOpen, onClose, onSubmit }: AddEventModalProps)
           <label className="font-bold text-slate-700">Detailed Notes</label>
           <textarea
             rows={3}
-            className="w-full rounded-lg border border-slate-200 p-2.5 text-xs text-slate-800"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            className="w-full rounded-lg border border-slate-200 p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             placeholder="What occurred, who communicated, and what promises were made?"
           />
         </div>
 
-        <div className="space-y-1">
-          <label className="font-bold text-slate-700">Attach Exhibit</label>
-          <select className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800">
-            <option>E01 - Invoice #INV-29381</option>
-            <option>E04 - WhatsApp Chat Export</option>
-            <option>E06 - Seller Denial Letter</option>
-          </select>
-        </div>
+        {availableEvidence.length > 0 && (
+          <div className="space-y-1">
+            <label className="font-bold text-slate-700">Link Supporting Exhibit</label>
+            <select
+              value={linkedExhibit}
+              onChange={(e) => setLinkedExhibit(e.target.value)}
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800"
+            >
+              <option value="">No exhibit linked</option>
+              {availableEvidence.map((ev) => (
+                <option key={ev.id} value={ev.code}>
+                  {ev.code} - {ev.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
     </Modal>
   );
@@ -218,7 +262,7 @@ export function EvidencePreviewModal({
           <Button
             variant="primary"
             size="sm"
-            onClick={() => alert(`Downloading verified exhibit ${evidence.code} with SHA-256 integrity stamp.`)}
+            onClick={() => alert(`Downloading verified exhibit ${evidence.code}.`)}
             className="rounded-xl gap-1.5"
           >
             <Download className="h-3.5 w-3.5" />
@@ -255,17 +299,17 @@ export function EvidencePreviewModal({
         <div className="space-y-1.5">
           <h4 className="font-bold text-slate-900">Exhibit Summary & Analysis:</h4>
           <p className="rounded-xl bg-slate-50 p-3.5 text-xs text-slate-700 leading-relaxed border border-slate-100">
-            {evidence.summary}
+            {evidence.summary || 'Uploaded document stored in case evidence vault.'}
           </p>
         </div>
 
         <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3.5 space-y-1">
           <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
             <Fingerprint className="h-4 w-4 text-indigo-600" />
-            <span>Cryptographic Integrity Proof (Sec 65B Admissibility):</span>
+            <span>Cryptographic Integrity Verification (Sec 65B Admissibility):</span>
           </div>
           <p className="text-[11px] text-slate-600 font-mono">
-            {evidence.verificationProof}
+            {evidence.verificationProof || 'SHA-256 Checksum generated upon upload'}
           </p>
         </div>
       </div>
@@ -288,7 +332,7 @@ export function FilingProcessModal({ isOpen, onClose }: FilingProcessModalProps)
       title={
         <div className="flex items-center gap-2 text-indigo-700">
           <Landmark className="h-5 w-5" />
-          <span>Potential Filing Channel: District Consumer Commission</span>
+          <span>Potential Filing Channels & Procedure</span>
         </div>
       }
       footer={
@@ -302,7 +346,7 @@ export function FilingProcessModal({ isOpen, onClose }: FilingProcessModalProps)
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors"
           >
-            <span>Open e-Daakhil Portal</span>
+            <span>Open National e-Daakhil Portal</span>
             <ExternalLink className="h-3 w-3" />
           </a>
         </>
@@ -310,31 +354,31 @@ export function FilingProcessModal({ isOpen, onClose }: FilingProcessModalProps)
     >
       <div className="space-y-4 text-xs">
         <div className="rounded-xl bg-slate-50 p-2.5 text-[11px] text-slate-500 border border-slate-200 leading-snug">
-          <strong>Notice:</strong> Based on the information provided, this channel may be relevant. NyaySetu provides procedural information only and does not replace qualified legal counsel.
+          <strong>Notice:</strong> Based on the information provided, these channels may be relevant. NyaySetu provides procedural information only and does not provide legal representation.
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Badge variant="purple">Bangalore Urban District</Badge>
+          <Badge variant="purple">District Consumer Commission (DCDRC)</Badge>
           <Badge variant="success">Pecuniary Limit: Up to ₹50 Lakhs</Badge>
-          <Badge variant="secondary">Court Fee: ₹0 (Under ₹5L)</Badge>
+          <Badge variant="secondary">Court Fee: ₹0 (For claims under ₹5L)</Badge>
         </div>
 
         <h4 className="font-bold text-slate-900 pt-1">
           Step-by-Step e-Filing Instructions on e-Daakhil:
         </h4>
         <ol className="list-decimal pl-5 space-y-2 text-slate-600 leading-relaxed">
-          <li>Visit <code>edaakhil.nic.in</code> and register with Mobile/Aadhaar OTP.</li>
-          <li>Choose State: <strong>Karnataka</strong> &rarr; District: <strong>Bangalore Urban</strong>.</li>
-          <li>Upload your NyaySetu-generated structured complaint memo as primary filing document.</li>
-          <li>Attach Exhibits E01 to E08 under Annexures with exact titles.</li>
-          <li>Pay ₹0 court fee (cases under ₹5,00,000 are 100% exempt from statutory fees).</li>
-          <li>Track case listing date and attend preliminary hearing via video conference.</li>
+          <li>Visit <code>edaakhil.nic.in</code> and register using Mobile/Aadhaar OTP.</li>
+          <li>Select your State and District Commission having appropriate territorial jurisdiction.</li>
+          <li>Upload your NyaySetu-generated Case Preparation Report as your primary grievance statement.</li>
+          <li>Attach your indexed exhibits under Annexures corresponding to each claim.</li>
+          <li>Pay applicable court fee (disputes below ₹5,00,000 are 100% exempt from filing fees).</li>
+          <li>Track case admission date and receive notices directly through the portal.</li>
         </ol>
 
         <div className="rounded-xl bg-slate-50 p-3 border border-slate-200">
-          <h5 className="font-bold text-slate-900 text-xs">Physical Forum Address:</h5>
+          <h5 className="font-bold text-slate-900 text-xs">Free Legal Aid via NALSA / DLSA:</h5>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Bangalore Urban 1st Additional District Consumer Disputes Redressal Commission, Shanthi Nagar, Bengaluru 560027.
+            Eligible citizens (including consumers, women, and workers) can request a free legal aid counsel through the District Legal Services Authority (DLSA) at their local district court complex.
           </p>
         </div>
       </div>
@@ -351,13 +395,14 @@ interface NewCaseModalProps {
 
 export function NewCaseModal({ isOpen, onClose, onStart }: NewCaseModalProps) {
   const [title, setTitle] = React.useState('');
-  const [selectedCat, setSelectedCat] = React.useState('Consumer & Goods');
+  const [selectedCat, setSelectedCat] = React.useState('Consumer Dispute');
 
   const categories = [
-    'Consumer & Goods',
-    'Tenancy & Rent',
-    'Employment & Salary',
-    'Cyber & Online Fraud',
+    'Consumer Dispute',
+    'Tenancy & Lease',
+    'Employment & Labor',
+    'Contract Breach',
+    'Digital Fraud & Cyber',
   ];
 
   return (
@@ -379,7 +424,8 @@ export function NewCaseModal({ isOpen, onClose, onStart }: NewCaseModalProps) {
             variant="primary"
             size="sm"
             onClick={() => {
-              onStart(title || 'New Case Matter', selectedCat);
+              onStart(title || 'New Dispute Matter', selectedCat);
+              setTitle('');
               onClose();
             }}
             className="rounded-xl"
@@ -415,7 +461,7 @@ export function NewCaseModal({ isOpen, onClose, onStart }: NewCaseModalProps) {
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g., Security Deposit Delay or Airline Ticket Refund"
+            placeholder="e.g., Security Deposit Delay or Defective Appliance"
           />
         </div>
       </div>

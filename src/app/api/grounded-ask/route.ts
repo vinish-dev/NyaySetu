@@ -1,27 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
+import { generateStructuredContent, sanitizeInput } from '@/lib/gemini';
 
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'GEMINI_API_KEY is not configured in the server environment.' },
-        { status: 500 }
-      );
-    }
+    const body = await req.json();
+    const rawQuestion = body?.question;
+    const documentContext = sanitizeInput(body?.documentContext, 40000);
+    const caseContext = body?.caseContext;
 
-    const ai = new GoogleGenAI({ apiKey });
-    const { question, documentContext, caseContext } = await req.json();
-
-    if (!question || typeof question !== 'string') {
+    if (!rawQuestion || typeof rawQuestion !== 'string' || rawQuestion.trim().length === 0) {
       return NextResponse.json(
-        { error: 'A question string is required.' },
+        { error: 'A valid question string is required.' },
         { status: 400 }
       );
     }
+
+    const question = sanitizeInput(rawQuestion, 2000);
 
     const prompt = `
 You are the grounded legal information engine of NyaySetu.
@@ -32,7 +28,7 @@ CORE PRINCIPLES:
 2. If the user asks about an obligation, notice period, or warranty condition, pinpoint the exact source citation (e.g. "Source: Warranty Terms → Section 4" or "Source: Tax Invoice E01 → Return Terms").
 3. DO NOT hallucinate facts not present in the records. If an answer cannot be determined from the documents, clearly state: "The provided documents do not contain information regarding [X]. Consider requesting [document Y]."
 4. Never issue conclusive judicial rulings. Frame responses as structured legal information and considerations.
-5. Return strictly valid JSON without markdown fences matching this schema:
+5. Return strictly valid JSON matching this schema:
 
 {
   "directAnswer": "Clear, plain-language answer directly resolving the question based on the document facts.",
@@ -53,32 +49,35 @@ CORE PRINCIPLES:
 ---
 CURRENT CASE & DOCUMENT CONTEXT:
 ${documentContext ? `DOCUMENT EXCERPTS:\n${documentContext}\n\n` : ''}
-${caseContext ? `CASE RECORD DETAILS:\n${JSON.stringify(caseContext, null, 2)}\n\n` : ''}
+${caseContext ? `CASE RECORD DETAILS:\n${JSON.stringify(caseContext, null, 2).slice(0, 30000)}\n\n` : ''}
 
 USER QUESTION:
 "${question}"
 `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{ text: prompt }],
-      config: {
-        responseMimeType: 'application/json',
-      },
-    });
+    const fallback = {
+      directAnswer: 'The provided records do not contain sufficient verified clauses to address this specific question. Please attach additional supporting records.',
+      sources: [],
+      proceduralSteps: [
+        'Review the original purchase or agreement document for written covenants.',
+        'Consult an advocate or legal aid advisor with full documentation.'
+      ],
+      consultationTip: 'Seek professional legal advice from an advocate or your local District Legal Services Authority.'
+    };
 
-    let rawText = response.text || '{}';
-    rawText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-    const parsed = JSON.parse(rawText);
+    const structuredResult = await generateStructuredContent({
+      contents: [{ text: prompt }],
+      fallback,
+    });
 
     return NextResponse.json({
       success: true,
-      data: parsed,
+      data: structuredResult,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in grounded-ask API:', error);
     return NextResponse.json(
-      { error: error?.message || 'Failed to process grounded legal inquiry.' },
+      { error: 'An error occurred while answering your inquiry. Please try again.' },
       { status: 500 }
     );
   }

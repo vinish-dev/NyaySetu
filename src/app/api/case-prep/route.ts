@@ -1,26 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
+import { generateStructuredContent, sanitizeInput } from '@/lib/gemini';
 
 export const maxDuration = 60;
 
+const ALLOWED_ACTIONS = new Set([
+  'extract-facts',
+  'generate-timeline',
+  'map-claims',
+  'detect-gaps',
+  'generate-report',
+]);
+
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const body = await req.json();
+    const action = body?.action;
+    const payload = body?.payload || {};
+
+    if (!action || !ALLOWED_ACTIONS.has(action)) {
       return NextResponse.json(
-        { error: 'GEMINI_API_KEY is not configured in the server environment.' },
-        { status: 500 }
+        { error: `Invalid or unsupported action: ${action}` },
+        { status: 400 }
       );
     }
 
-    const ai = new GoogleGenAI({ apiKey });
-    const { action, payload } = await req.json();
-
-    if (!action) {
-      return NextResponse.json({ error: 'Action parameter required.' }, { status: 400 });
-    }
+    const narrative = sanitizeInput(payload?.narrative, 30000);
+    const category = sanitizeInput(payload?.category, 200);
 
     let prompt = '';
+    let fallback: any = {};
 
     if (action === 'extract-facts') {
       prompt = `
@@ -29,8 +37,8 @@ A citizen has described their dispute in plain words.
 Extract structured factual metadata and relevant legal considerations without making conclusive judicial determinations.
 
 Input Narrative:
-"${payload.narrative || ''}"
-Category Hint: "${payload.category || ''}"
+"${narrative}"
+Category Hint: "${category}"
 
 Return strictly valid JSON:
 {
@@ -45,13 +53,24 @@ Return strictly valid JSON:
   "relevantConsiderations": "Relevant legal considerations (e.g. Consumer Protection Act 2019 provisions or limitation windows) framed informatively."
 }
 `;
+      fallback = {
+        title: 'Dispute Matter',
+        category: category || 'Consumer Dispute',
+        incidentDate: '',
+        location: '',
+        involvedParty: '',
+        involvedPartyContact: '',
+        desiredResolution: '',
+        factualSummary: narrative.slice(0, 150),
+        relevantConsiderations: 'Dispute governed by applicable statutory provisions. Consult an advocate for legal representation.',
+      };
     } else if (action === 'generate-timeline') {
       prompt = `
 You are the timeline engine of NyaySetu.
 Given the incident narrative and available evidence list, extract a chronological sequence of events.
 
-Narrative: "${payload.narrative || ''}"
-Evidence Available: ${JSON.stringify(payload.evidence || [])}
+Narrative: "${narrative}"
+Evidence Available: ${JSON.stringify(payload.evidence || []).slice(0, 20000)}
 
 Return strictly valid JSON:
 {
@@ -60,19 +79,20 @@ Return strictly valid JSON:
       "date": "Date string (e.g. 10 Jan 2024)",
       "title": "Short event title (e.g. Order Placed)",
       "description": "What took place during this event",
-      "iconType": "cart" | "payment" | "delivery" | "warning" | "chat" | "danger",
-      "linkedEvidence": ["Code e.g. E01 Invoice"]
+      "iconType": "cart",
+      "linkedEvidence": ["E01"]
     }
   ]
 }
 `;
+      fallback = { events: [] };
     } else if (action === 'map-claims') {
       prompt = `
 You are the evidence-claim linker for NyaySetu.
 Given the factual dispute narrative and available evidence exhibits, suggest substantiated legal contentions and link the exhibits that prove each contention.
 
-Narrative: "${payload.narrative || ''}"
-Evidence Exhibits: ${JSON.stringify(payload.evidence || [])}
+Narrative: "${narrative}"
+Evidence Exhibits: ${JSON.stringify(payload.evidence || []).slice(0, 20000)}
 
 Return strictly valid JSON:
 {
@@ -87,46 +107,56 @@ Return strictly valid JSON:
   ]
 }
 `;
+      fallback = { contentions: [] };
     } else if (action === 'detect-gaps') {
       prompt = `
 You are the case completeness auditor for NyaySetu.
 Compare what the citizen asserted happened against the documentary exhibits they have uploaded.
 Identify missing documentation that the opposing party would likely request, and provide a transparent completion checklist.
 
-Narrative: "${payload.narrative || ''}"
-Evidence List: ${JSON.stringify(payload.evidence || [])}
+Narrative: "${narrative}"
+Evidence List: ${JSON.stringify(payload.evidence || []).slice(0, 20000)}
 
 Return strictly valid JSON:
 {
-  "completionScore": 82, // integer between 0 and 100 representing documentation completeness
-  "completionLabel": "e.g. 82% complete",
+  "completionScore": 75,
+  "completionLabel": "75% complete",
   "checklist": [
     { "name": "Incident details", "status": "complete" },
     { "name": "Timeline", "status": "complete" },
-    { "name": "Payment proof", "status": "complete" },
-    { "name": "Communication records", "status": "complete" },
-    { "name": "Product serial/IMEI", "status": "missing" },
-    { "name": "Warranty document", "status": "missing" }
+    { "name": "Payment proof", "status": "missing" },
+    { "name": "Communication records", "status": "missing" }
   ],
   "missingItems": [
     {
       "title": "Document or evidence item name",
       "description": "Why having this document prevents dispute or strengthens factual clarity",
-      "severity": "danger" | "warning"
+      "severity": "warning"
     }
   ],
   "claimsCovered": [
-    "Fact point 1 supported by records",
-    "Fact point 2 supported by records"
+    "Core incident narrative recorded"
   ]
 }
 `;
+      fallback = {
+        completionScore: 50,
+        completionLabel: '50% complete',
+        checklist: [
+          { name: 'Incident details', status: 'complete' },
+          { name: 'Timeline', status: 'missing' },
+          { name: 'Payment proof', status: 'missing' },
+          { name: 'Communication records', status: 'missing' },
+        ],
+        missingItems: [],
+        claimsCovered: ['Initial grievance recorded'],
+      };
     } else if (action === 'generate-report') {
       prompt = `
 You are the Structured Case Preparation Report compiler for NyaySetu.
 Assemble a formal, factual Case Preparation Report based on all entered data.
 
-Data: ${JSON.stringify(payload, null, 2)}
+Data: ${JSON.stringify(payload, null, 2).slice(0, 30000)}
 
 Return strictly valid JSON:
 {
@@ -138,9 +168,7 @@ Return strictly valid JSON:
   },
   "statementOfFacts": [
     "Numbered factual statement 1",
-    "Numbered factual statement 2",
-    "Numbered factual statement 3",
-    "Numbered factual statement 4"
+    "Numbered factual statement 2"
   ],
   "relevantConsiderations": "Statutory references and grounds to review with an advocate",
   "remedySought": "Specific monetary or remedial relief requested",
@@ -150,31 +178,32 @@ Return strictly valid JSON:
   "disclaimer": "This Structured Case Summary is organized for factual clarity and personal preparation. It does not constitute formal legal counsel or a finalized court pleading."
 }
 `;
-    } else {
-      return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
+      fallback = {
+        reportTitle: 'STRUCTURED CASE PREPARATION REPORT',
+        referenceId: `NS-${Date.now().toString().slice(-4)}`,
+        parties: { complainant: 'Aggrieved Citizen', oppositeParty: 'Opposing Entity' },
+        statementOfFacts: [narrative.slice(0, 200)],
+        relevantConsiderations: 'To be examined under relevant statutory guidelines.',
+        remedySought: 'Fair dispute resolution and compensation as permissible.',
+        exhibitIndex: [],
+        disclaimer: 'This Structured Case Summary is organized for factual clarity and personal preparation. It does not constitute formal legal counsel or a finalized court pleading.',
+      };
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const structuredResult = await generateStructuredContent({
       contents: [{ text: prompt }],
-      config: {
-        responseMimeType: 'application/json',
-      },
+      fallback,
     });
-
-    let rawText = response.text || '{}';
-    rawText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-    const parsed = JSON.parse(rawText);
 
     return NextResponse.json({
       success: true,
       action,
-      data: parsed,
+      data: structuredResult,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in case-prep API:', error);
     return NextResponse.json(
-      { error: error?.message || 'Failed to execute case preparation AI.' },
+      { error: 'An unexpected error occurred during case preparation analysis.' },
       { status: 500 }
     );
   }
